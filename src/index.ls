@@ -10,26 +10,32 @@ spell-list =
     icon: "spell_holy_flashheal"
     name: "Flash of light"
     spec-id: 10
+    cost: [2 0]
   * id: 2
     icon: "spell_holy_flashheal"
     name: "Flash of holy light"
     spec-id: 10
+    cost: [2 0]
   * id: 3
     icon: "spell_holy_searinglight"
     name: "Flash of mega super light"
     spec-id: 10
+    cost: [2 0]
   * id: 4
     icon: "spell_holy_righteousfury"
     name: "Attack of light"
     spec-id: 11
+    cost: [2 0]
   * id: 5
     icon: "spell_holy_crusaderstrike"
     name: "Attack of holy light"
     spec-id: 11
+    cost: [2 0]
   * id: 6
     icon: "spell_holy_rebuke"
     name: "Attack of mega super light"
     spec-id: 11
+    cost: [2 0]
 
 spell-list-by-spec = {}
 for {spec-id}:spell in spell-list
@@ -46,26 +52,30 @@ class-list =
       * 10
       * 11
 
-known-spells = [] # the spells the user has learned
+state =
+  selected-spec: void
+  known-spells: [] # the spells the user has learned
 
-$spec-list.appendChild render-class-spec-list!
+$spec-list.appendChild render-class-spec-list(state)
 
-function click-spell id, spec-id
-  console.log "bind #id"
+filter = (fn, xs) --> # curry-friendly filter
+  xs.filter fn
+apply = (o, k, fn) -> # object apply to key
+  o with (k): fn o[k]
+
+function click-spell(id, {known-spells}:state)
   ->
-    console.log known-spells
     if id in known-spells
-      remove-item known-spells, id
+      render-spec apply(state, \knownSpells, filter (!= id))
     else
-      known-spells.push id
-    render-spec spec-id
+      render-spec apply(state, \knownSpells, (++ id))
 
-!function render-spec spec-id
+!function render-spec({selected-spec, known-spells}:state)
   $spec-view.inner-HTML = ""
-  $spec-view.appendChild L(\h3) <<< inner-HTML: spec-list[spec-id]
+  $spec-view.appendChild L(\h3) <<< inner-HTML: spec-list[selected-spec]
   $spell-list = L(\div)
     ..id = \spell-list
-  for let {id, icon, name}:spell in spell-list-by-spec[spec-id]
+  for let {id, icon, name}:spell in spell-list-by-spec[selected-spec]
     $spell = L \div
       ..class-list.add \spell
     known = id in known-spells
@@ -74,7 +84,7 @@ function click-spell id, spec-id
       ..class-list.add if known then \known else \unknown
       ..style.background = "url(#{spell-icon icon})"
       ..title = "#name (click to #{if known then "unlearn" else "learn"})"
-      ..onclick = click-spell id, spec-id
+      ..onclick = click-spell id, state
         
       $spell.appendChild ..
     L \span
@@ -86,18 +96,13 @@ function click-spell id, spec-id
 function spell-icon
   "//wow.zamimg.com/images/wow/icons/large/#it.jpg"
 
-function render-class-spec-list
+function render-class-spec-list(state)
   list = L \ul
   for name, {color, specs} of class-list
     for let spec-id in specs
       L \li
         ..inner-HTML = "#name #{spec-list[spec-id]}"
         ..style.background-color = color
-        ..onclick = -> render-spec spec-id
+        ..onclick = -> render-spec (state with selected-spec: spec-id)
         list.append-child ..
   list
-
-!function remove-item xs, x
-  idx = xs.indexOf x
-  if idx isnt -1
-    xs.splice idx, 1
